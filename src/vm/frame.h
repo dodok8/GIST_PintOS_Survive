@@ -9,9 +9,8 @@ struct frame
 	struct lock lock;
 	void *base;
 	struct page *page;
-}
+};
 
-void
-frame_init(void)
+void frame_init(void);
 
 #endif
