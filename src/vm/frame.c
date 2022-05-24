@@ -1,4 +1,5 @@
 #include "vm/frame.h"
+#include "vm/page.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
@@ -86,6 +87,41 @@ static struct frame *try_frame_alloc_and_lock(struct page *page)
 
 	lock_release(&scan);
 	return NULL;
+}
+
+struct frame *
+frame_alloc_and_lock(struct page *page)
+{
+	size_t cnt;
+
+	// FIXME: This loop is useless
+	for (cnt = 0; cnt < 3; cnt++)
+	{
+		struct frame *f = try_frame_alloc_and_lock(page);
+		if (f != NULL)
+		{
+			ASSERT(lock_held_by_current_thread(&f->lock));
+			return f;
+		}
+		timer_msleep(1000);
+	}
+
+	return NULL;
+}
+
+void frame_lock(struct page *page)
+{
+	struct frame *frm = page->frame;
+	if (frm != NULL)
+	{
+		lock_acquire(&frm->lock);
+		// NOTE: Why do we need to check this?
+		if (frm != page->frame)
+		{
+			lock_release(&frm->lock);
+			ASSERT(page->frame == NULL);
+		}
+	}
 }
 
 void frame_free(struct frame *frm)
