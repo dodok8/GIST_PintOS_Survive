@@ -87,3 +87,17 @@ static struct frame *try_frame_alloc_and_lock(struct page *page)
 	lock_release(&scan);
 	return NULL;
 }
+
+void frame_free(struct frame *frm)
+{
+	ASSERT(lock_held_by_current_thread(&frm->lock));
+
+	frm->page = NULL;
+	lock_release(&frm->lock);
+}
+
+void frame_unlock(struct frame *frm)
+{
+	ASSERT(lock_held_by_current_thread(&frm->lock));
+	lock_release(&frm->lock);
+}
