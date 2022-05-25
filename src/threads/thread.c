@@ -482,6 +482,9 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->load_lock, 0); 
   list_init(&(t->child));
   list_push_back(&(running_thread()->child), &(t->child_elem));
+
+  //code modify-initializing pages
+  t->pages=NULL;
 #endif 
 }
 
