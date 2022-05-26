@@ -6,6 +6,16 @@
 #include "threads/vaddr.h"
 #include "filesys/off_t.h"
 
+//code modify-for defining mapping structure
+struct mapping
+{
+  struct list_elem elem;      /* List element. */
+  mapid_t map_id;                 /* Mapping id. */
+  struct file *file;          /* File. */
+  uint8_t *base;              /* Start of memory mapping. */
+  size_t page_cnt;            /* Number of pages mapped. */
+};
+
 struct file
   {
     struct inode *inode;        /* File's inode. */
@@ -85,6 +95,15 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_user_vaddr(f->esp + 4);
       close((int)*(uint32_t *)(f->esp + 4));
       break;
+    case SYS_MMAP:
+      check_user_vaddr(f->esp + 4);
+      check_user_vaddr(f->esp + 8);
+      f->eax=mmap((int)*(uint32_t *)(f->esp + 4), (void *)*(uint32_t *)(f->esp + 8));
+      break;
+    case SYS_MUNMAP:
+      check_user_vaddr(f->esp + 4);
+      munmap((mapid_t)*(uint32_t *)(f->esp + 4));
+      break;
   }
 }
 void halt (void) {
@@ -93,13 +112,24 @@ void halt (void) {
 
 void exit (int status) {
   int i;
+  struct thread *cur_thread=thread_current();
+  struct list_elem *e;
   printf("%s: exit(%d)\n", thread_name(), status);
-  thread_current() -> exit_status = status;
+  cur_thread -> exit_status = status;
   for (i = 3; i < 128; i++) {
-      if (thread_current()->fd[i] != NULL) {
+      if (cur_thread->fd[i] != NULL) {
           close(i);
       }
   }
+
+  //code modify-for unmapping when exit
+  for (e = list_begin (&cur_thread->mappings); e != list_end (&cur_thread->mappings); e = next)
+  {
+    struct mapping *m = list_entry (e, struct mapping, elem);
+    next = list_next (e);
+    unmap (m);
+  }
+
   thread_exit ();
 }
 
@@ -228,4 +258,96 @@ void close (int fd) {
   fp = thread_current()->fd[fd];
   thread_current()->fd[fd] = NULL;
   return file_close(fp);
+}
+
+//code modify-for function which finds mapping with map_id
+static struct mapping *
+lookup_mapping (mapid_t map_id)
+{
+  struct thread *cur_thread = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur_thread->mappings); e != list_end (&cur_thread->mappings); e = list_next (e))
+  {
+    struct mapping *m = list_entry (e, struct mapping, elem);
+    if (m->map_id == map_id)
+      return m;
+  }
+
+  thread_exit ();
+}
+
+//code modify-for unmapping mapping structure object
+static void
+unmap (struct mapping *m)
+{
+  int i;
+  list_remove(&m->elem);
+
+  for(i = 0; i < m->page_cnt; i++)
+  {
+    if (pagedir_is_dirty(thread_current()->pagedir, ((const void *) ((m->base) + (PGSIZE * i)))))
+    {
+      lock_acquire (&filesys_lock);
+      file_write_at(m->file, (const void *) (m->base + (PGSIZE * i)), (PGSIZE*(m->page_cnt)), (PGSIZE * i));
+      lock_release (&filesys_lock);
+    }
+  }
+
+  for(i = 0; i < m->page_cnt; i++)
+  {
+    page_deallocate((void *) ((m->base) + (PGSIZE * i)));
+  }
+}
+
+//code modify-for implementing mmap and munmap
+mapid_t mmap(int fd, void *addr)
+{
+  struct mapping *m = malloc (sizeof *m);
+  size_t offset;
+  off_t length;
+
+  if (m == NULL || addr == NULL || pg_ofs (addr) != 0)
+    return -1;
+  m->map_id = thread_current ()->next_mapid++;
+  lock_acquire (&filsys_lock);
+  m->file = file_reopen (thread_current()->fd[fd]);
+  lock_release (&filesys_lock);
+  if (m->file == NULL)
+    {
+      free (m);
+      return -1;
+    }
+  m->base = addr;
+  m->page_cnt = 0;
+  list_push_front (&thread_current ()->mappings, &m->elem);
+
+  offset = 0;
+  lock_acquire (&filesys_lock);
+  length = file_length (m->file);
+  lock_release (&filesys_lock);
+  while (length > 0)
+    {
+      struct page *p = page_allocate ((uint8_t *) addr + offset, false);
+      if (p == NULL)
+        {
+          unmap (m);
+          return -1;
+        }
+      p->private = false;
+      p->file = m->file;
+      p->file_offset = offset;
+      p->file_bytes = length >= PGSIZE ? PGSIZE : length;
+      offset += p->file_bytes;
+      length -= p->file_bytes;
+      m->page_cnt++;
+    }
+
+  return m->map_id;
+}
+
+void munmap(mapid_t map_id)
+{
+  struct mapping *m = lookup_mapping(map_id);
+  unmap(map_id);
 }

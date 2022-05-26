@@ -110,6 +110,12 @@ struct thread
     //code modify-for page.c
     void *user_esp;
     struct hash *pages;
+
+    //code modify-for memory mapped file
+    struct list mappings;
+    
+    //code modify-for memory mapped file unique map_id per thread to mapping structure
+    int next_mapid;
 #endif
 
     /* Owned by thread.c. */

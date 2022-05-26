@@ -485,6 +485,10 @@ init_thread (struct thread *t, const char *name, int priority)
 
   //code modify-initializing pages
   t->pages=NULL;
+  //code modify-initializing list of mappings
+  list_init(&t->mappings);
+  //code modify-initializing next_mapid
+  t->next_mapid=0;
 #endif 
 }
 
