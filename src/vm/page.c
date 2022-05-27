@@ -10,6 +10,7 @@
 #include "threads/vaddr.h"
 
 #define STACK_MAX 1048576 //1024^2
+#define tmp 1
 
 static void destroy_page(struct hash_elem *p_, void *aux UNUSED)
 {

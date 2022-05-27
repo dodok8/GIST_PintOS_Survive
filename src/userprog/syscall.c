@@ -1,10 +1,22 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <string.h>
 #include <syscall-nr.h>
+#include "userprog/process.h"
+#include "userprog/pagedir.h"
+#include "devices/input.h"
+#include "devices/shutdown.h"
+#include "filesys/directory.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "filesys/off_t.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 
 //code modify-for defining mapping structure
 struct mapping
@@ -22,6 +34,8 @@ struct file
     off_t pos;                  /* Current position. */
     bool deny_write;            /* Has file_deny_write() been called? */
   };
+static void unmap(struct mapping *);
+
 static void syscall_handler (struct intr_frame *);
 void check_user_vaddr(const void *vaddr);
 struct lock filesys_lock;
@@ -113,7 +127,7 @@ void halt (void) {
 void exit (int status) {
   int i;
   struct thread *cur_thread=thread_current();
-  struct list_elem *e;
+  struct list_elem *e, *next;
   printf("%s: exit(%d)\n", thread_name(), status);
   cur_thread -> exit_status = status;
   for (i = 3; i < 128; i++) {
@@ -278,8 +292,7 @@ lookup_mapping (mapid_t map_id)
 }
 
 //code modify-for unmapping mapping structure object
-static void
-unmap (struct mapping *m)
+static void unmap (struct mapping *m)
 {
   int i;
   list_remove(&m->elem);
@@ -310,7 +323,7 @@ mapid_t mmap(int fd, void *addr)
   if (m == NULL || addr == NULL || pg_ofs (addr) != 0)
     return -1;
   m->map_id = thread_current ()->next_mapid++;
-  lock_acquire (&filsys_lock);
+  lock_acquire (&filesys_lock);
   m->file = file_reopen (thread_current()->fd[fd]);
   lock_release (&filesys_lock);
   if (m->file == NULL)
@@ -349,5 +362,5 @@ mapid_t mmap(int fd, void *addr)
 void munmap(mapid_t map_id)
 {
   struct mapping *m = lookup_mapping(map_id);
-  unmap(map_id);
+  unmap(m);
 }

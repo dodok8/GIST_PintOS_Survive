@@ -14,9 +14,12 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 void parse_filename(char *src, char *dest);
@@ -588,7 +591,7 @@ setup_stack (const char *cmd_line, void **esp)
           bool ok;
           page->read_only = false;
           page->private = false;
-          ok = init_cmd_line (page->frame->base, page->addr, cmd_line, esp);
+          ok = construct_esp (page->frame->base, page->addr, cmd_line, esp);
           frame_unlock (page->frame);
           return ok;
         }

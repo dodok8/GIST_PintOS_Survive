@@ -8,7 +8,7 @@
 
 struct page
 {
-  void *addr
+  void *addr;
   bool read_only;
   struct thread *thread;
   
@@ -23,7 +23,7 @@ struct page
   struct file *file;
   off_t file_offset;
   off_t file_bytes;
-}
+};
 
 void page_exit(void);
 
