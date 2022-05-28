@@ -95,19 +95,13 @@ static struct frame *try_frame_alloc_and_lock(struct page *page)
 struct frame *
 frame_alloc_and_lock(struct page *page)
 {
-	size_t cnt;
-
-	// FIXME: This loop is useless
-	for (cnt = 0; cnt < 3; cnt++)
-	{
 		struct frame *f = try_frame_alloc_and_lock(page);
+
 		if (f != NULL)
 		{
 			ASSERT(lock_held_by_current_thread(&f->lock));
 			return f;
 		}
-		timer_msleep(1000);
-	}
 
 	return NULL;
 }
