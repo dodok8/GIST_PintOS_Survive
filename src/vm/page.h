@@ -35,11 +35,11 @@ bool page_out(struct page *);
 bool page_accessed_recently(struct page *);
 
 bool page_lock(const void *, bool);
-void page_unblock(const void *);
+void page_unlock(const void *);
 
-unsigned page_hash(const struct hash_elem *e, void *aux);
-bool page_less(const struct hash_elem *a,
-                             const struct hash_elem *b,
-                             void *aux);
+unsigned page_hash(const struct hash_elem *, void *);
+bool page_less(const struct hash_elem *,
+                             const struct hash_elem *,
+                             void *);
 
 #endif
