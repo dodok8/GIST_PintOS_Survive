@@ -74,6 +74,7 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
   char cmd_name[500];
+  printf("@@@@@@@@@@@@%s@@@@@@@@@@@@\n", file_name);
 
   //parse_filename(file_name, cmd_name);TODO
   /* Initialize interrupt frame and load executable. */
@@ -269,6 +270,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
+
+  //code modify-for initialize hash
+  t->pages=malloc(sizeof(*t->pages));
+  if(t->pages==NULL)
+    goto done;
+  hash_init(t->pages, page_hash, page_less, NULL);
   //code modify-for parsing filename
   parse_filename(file_name, file_parsed);
   /* Open executable file. */
