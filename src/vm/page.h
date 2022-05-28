@@ -37,7 +37,9 @@ bool page_accessed_recently(struct page *);
 bool page_lock(const void *, bool);
 void page_unblock(const void *);
 
-hash_hash_func page_hash;
-hash_less_func page_less;
+unsigned page_hash(const struct hash_elem *e, void *aux);
+bool page_less(const struct hash_elem *a,
+                             const struct hash_elem *b,
+                             void *aux);
 
 #endif
