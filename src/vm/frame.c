@@ -40,9 +40,9 @@ static struct frame *try_frame_alloc_and_lock(struct page *page)
 	for (idx = 0; idx < frm_cnt; idx++)
 	{
 		struct frame *frm = &frames[idx];
-		lock_acquire(&frm->lock);
-		if (!lock_try_acquire(&frm->lock))
+		if (!lock_try_acquire(&frm->lock)) {
 			continue;
+		}
 		if (frm->page == NULL)
 		{
 			frm->page = page;
@@ -58,9 +58,9 @@ static struct frame *try_frame_alloc_and_lock(struct page *page)
 		if (hand + 1 >= frm_cnt)
 			hand = 0;
 
-		if (!lock_try_acquire(&frm->lock))
+		if (!lock_try_acquire(&frm->lock)){
 			continue;
-
+		}
 		// FIXME: this is unused.
 		if (frm->page == NULL)
 		{
@@ -99,6 +99,7 @@ frame_alloc_and_lock(struct page *page)
 
 		if (f != NULL)
 		{
+			printf("hi");
 			ASSERT(lock_held_by_current_thread(&f->lock));
 			return f;
 		}
