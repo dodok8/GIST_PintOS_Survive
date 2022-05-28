@@ -20,6 +20,7 @@
 #include "threads/vaddr.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 void parse_filename(char *src, char *dest);
@@ -90,7 +91,9 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   sema_up(&thread_current()->parent->load_lock);
   if (!success) 
-    exit(-1);
+    exit(-1); 
+    // NOTE: change exit to thread_eixt
+    // thread_exit();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -154,11 +155,10 @@ page_fault (struct intr_frame *f)
     exit(-1);
   }TODO*/
   //code modify-for handling page fault with demand paging
-  if(user && not_present)
-  {
+  if(user && not_present) {
     if(!page_in(fault_addr))
       exit(-1);
-    return;
+    return; //NOTE : Change this result in time out : It affects to kernel panic!
   }
 
   /* To implement virtual memory, delete the rest of the function

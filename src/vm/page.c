@@ -146,7 +146,7 @@ struct page * page_allocate(void *vaddr, bool read_only)
   struct thread *t=thread_current();
   struct page *p=malloc(sizeof(*p));
 
-  if(p!=NULL)
+  if(p != NULL)
   {
     p->addr=pg_round_down(vaddr);
     
