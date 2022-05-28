@@ -155,9 +155,7 @@ page_fault (struct intr_frame *f)
     exit(-1);
   }TODO*/
   //code modify-for handling page fault with demand paging
-  printf("if this happens, next printf should happen, too.\n");
   if(user && not_present) {
-    printf("now testing page_fault!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     if(!page_in(fault_addr))
       exit(-1);
     return; //NOTE : Change this result in time out : It affects to kernel panic!

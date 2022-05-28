@@ -74,7 +74,6 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
   char cmd_name[500];
-  printf("@@@@@@@@@@@@%s@@@@@@@@@@@@\n", file_name);
 
   //parse_filename(file_name, cmd_name);TODO
   /* Initialize interrupt frame and load executable. */
@@ -93,8 +92,6 @@ start_process (void *file_name_)
   sema_up(&thread_current()->parent->load_lock);
   if (!success) 
     exit(-1); 
-    // NOTE: change exit to thread_eixt
-    // thread_exit();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
