@@ -188,7 +188,7 @@ void page_deallocate(void *vaddr)
   free(p);
 }
 
-unsigned pash_hash(const struct hash_elem *e, void *aux UNUSED)
+unsigned page_hash(const struct hash_elem *e, void *aux UNUSED)
 {
   const struct page *p=hash_entry(e, struct page, hash_elem);
   return ((uintptr_t)p->addr)>>PGBITS;

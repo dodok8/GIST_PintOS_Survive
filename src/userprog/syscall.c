@@ -164,7 +164,7 @@ int filesize (int fd) {
 
 int read (int fd, void* buffer, unsigned size) {
   int i;
-  int ret;
+  int ret=-1;
   check_user_vaddr(buffer);
   lock_acquire(&filesys_lock);
   if (fd == 0) {
