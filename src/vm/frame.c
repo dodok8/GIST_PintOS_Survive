@@ -99,7 +99,6 @@ frame_alloc_and_lock(struct page *page)
 
 		if (f != NULL)
 		{
-			printf("hi");
 			ASSERT(lock_held_by_current_thread(&f->lock));
 			return f;
 		}
