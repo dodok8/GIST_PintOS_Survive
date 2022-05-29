@@ -5,7 +5,6 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
-#include <hash.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -106,16 +105,6 @@ struct thread
     struct list_elem child_elem;
     int exit_status;
     struct file* fd[200];
-    
-    //code modify-for page.c
-    void *user_esp;
-    struct hash *pages;
-
-    //code modify-for memory mapped file
-    struct list mappings;
-    
-    //code modify-for memory mapped file unique map_id per thread to mapping structure
-    int next_mapid;
 #endif
 
     /* Owned by thread.c. */

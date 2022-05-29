@@ -14,17 +14,13 @@
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
-#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "vm/page.h"
-#include "vm/frame.h"
-#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 void parse_filename(char *src, char *dest);
-//void construct_esp(char *file_name, void **esp);TODO
+void construct_esp(char *file_name, void **esp);
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
@@ -75,23 +71,22 @@ start_process (void *file_name_)
   bool success;
   char cmd_name[500];
 
-  //parse_filename(file_name, cmd_name);TODO
+  parse_filename(file_name, cmd_name);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  //success = load (cmd_name, &if_.eip, &if_.esp);TODO
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (cmd_name, &if_.eip, &if_.esp);
 
-  /*if (success) {
+  if (success) {
     construct_esp(file_name, &if_.esp);
-  }TODO*/
+  }
   /* If load failed, quit. */
   palloc_free_page (file_name);
   sema_up(&thread_current()->parent->load_lock);
   if (!success) 
-    exit(-1); 
+    exit(-1);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -239,8 +234,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-//static bool setup_stack (void **esp);TODO
-static bool setup_stack (const char *cmd_line, void **esp);
+static bool setup_stack (void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -259,8 +253,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  //code modify-for parsing filename
-  char file_parsed[500];
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -268,20 +260,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  //code modify-for initialize hash
-  t->pages=malloc(sizeof(*t->pages));
-  if(t->pages==NULL)
-    goto done;
-  hash_init(t->pages, page_hash, page_less, NULL);
-  //code modify-for parsing filename
-  parse_filename(file_name, file_parsed);
   /* Open executable file. */
-  //file = filesys_open (file_name);TODO
-  file = filesys_open (file_parsed);
+  file = filesys_open (file_name);
   if (file == NULL) 
     {
-      //printf ("load: %s: open failed\n", file_name);TODO
-      printf ("load: %s: open failed\n", file_parsed);
+      printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
 
@@ -358,7 +341,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (file_name, esp))
+  if (!setup_stack (esp))
     goto done;
 
   /* Start address. */
@@ -435,7 +418,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-/*static bool
+static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
@@ -446,13 +429,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+      /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
+      /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
@@ -460,153 +448,23 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
+      /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
 
+      /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
   return true;
-}TODO*/
-
-static bool
-load_segment (struct file *file, off_t ofs, uint8_t *upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
-{
-  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (upage) == 0);
-  ASSERT (ofs % PGSIZE == 0);
-
-  while (read_bytes > 0 || zero_bytes > 0) 
-    {
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
-      struct page *p = page_allocate (upage, !writable);
-      if (p == NULL)
-        return false;
-      if (page_read_bytes > 0) 
-        {
-          p->file = file;
-          p->file_offset = ofs;
-          p->file_bytes = page_read_bytes;
-        }
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      ofs += page_read_bytes;
-      upage += PGSIZE;
-    }
-  return true;
 }
 
-/* Reverse the order of the ARGC pointers to char in ARGV. */
-static void
-reverse (int argc, char **argv) 
-{
-  for (; argc > 1; argc -= 2, argv++) 
-    {
-      char *tmp = argv[0];
-      argv[0] = argv[argc - 1];
-      argv[argc - 1] = tmp;
-    }
-}
-
-/* Pushes the SIZE bytes in BUF onto the stack in KPAGE, whose
-   page-relative stack pointer is *OFS, and then adjusts *OFS
-   appropriately.  The bytes pushed are rounded to a 32-bit
-   boundary.
-
-   If successful, returns a pointer to the newly pushed object.
-   On failure, returns a null pointer. */
-static void *
-push (uint8_t *kpage, size_t *ofs, const void *buf, size_t size) 
-{
-  size_t padsize = ROUND_UP (size, sizeof (uint32_t));
-  if (*ofs < padsize)
-    return NULL;
-
-  *ofs -= padsize;
-  memcpy (kpage + *ofs + (padsize - size), buf, size);
-  return kpage + *ofs + (padsize - size);
-}
-
-/* Sets up command line arguments in KPAGE, which will be mapped
-   to UPAGE in user space.  The command line arguments are taken
-   from CMD_LINE, separated by spaces.  Sets *ESP to the initial
-   stack pointer for the process. */
-static bool
-construct_esp (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
-               void **esp) 
-{
-  size_t ofs = PGSIZE;
-  char *const null = NULL;
-  char *cmd_line_copy;
-  char *karg, *saveptr;
-  int argc;
-  char **argv;
-
-  /* Push command line string. */
-  cmd_line_copy = push (kpage, &ofs, cmd_line, strlen (cmd_line) + 1);
-  if (cmd_line_copy == NULL)
-    return false;
-
-  if (push (kpage, &ofs, &null, sizeof null) == NULL)
-    return false;
-
-  /* Parse command line into arguments
-     and push them in reverse order. */
-  argc = 0;
-  for (karg = strtok_r (cmd_line_copy, " ", &saveptr); karg != NULL;
-       karg = strtok_r (NULL, " ", &saveptr))
-    {
-      void *uarg = upage + (karg - (char *) kpage);
-      if (push (kpage, &ofs, &uarg, sizeof uarg) == NULL)
-        return false;
-      argc++;
-    }
-
-  /* Reverse the order of the command line arguments. */
-  argv = (char **) (upage + ofs);
-  reverse (argc, (char **) (kpage + ofs));
-
-  /* Push argv, argc, "return address". */
-  if (push (kpage, &ofs, &argv, sizeof argv) == NULL
-      || push (kpage, &ofs, &argc, sizeof argc) == NULL
-      || push (kpage, &ofs, &null, sizeof null) == NULL)
-    return false;
-
-  /* Set initial stack pointer. */
-  *esp = upage + ofs;
-  return true;
-}
-
-/* Create a minimal stack for T by mapping a page at the
-   top of user virtual memory.  Fills in the page using CMD_LINE
-   and sets *ESP to the stack pointer. */
-static bool
-setup_stack (const char *cmd_line, void **esp) 
-{
-  struct page *page = page_allocate (((uint8_t *) PHYS_BASE) - PGSIZE, false);
-  if (page != NULL) 
-    {
-      page->frame = frame_alloc_and_lock (page);
-      if (page->frame != NULL)
-        {
-          bool ok;
-          page->read_only = false;
-          page->private = false;
-          ok = construct_esp (page->frame->base, page->addr, cmd_line, esp);
-          frame_unlock (page->frame);
-          return ok;
-        }
-    }
-  return false;
-}
-
-/*
+/* Create a minimal stack by mapping a zeroed page at the top of
+   user virtual memory. */
 static bool
 setup_stack (void **esp) 
 {
@@ -623,7 +481,7 @@ setup_stack (void **esp)
         palloc_free_page (kpage);
     }
   return success;
-}TODO*/
+}
 
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
@@ -651,7 +509,7 @@ void parse_filename(char *src, char *dest) {
   for (i=0; dest[i]!='\0' && dest[i] != ' '; i++);
   dest[i] = '\0';
 }
-/*
+
 void construct_esp(char *file_name, void **esp) {
 
   char ** argv;
@@ -666,11 +524,13 @@ void construct_esp(char *file_name, void **esp) {
   strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
   token = strtok_r(stored_file_name, " ", &last);
   argc = 0;
+  /* calculate argc */
   while (token != NULL) {
     argc += 1;
     token = strtok_r(NULL, " ", &last);
   }
   argv = (char **)malloc(sizeof(char *) * argc);
+  /* store argv */
   strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
   for (i = 0, token = strtok_r(stored_file_name, " ", &last); i < argc; i++, token = strtok_r(NULL, " ", &last)) {
     len = strlen(token);
@@ -678,6 +538,7 @@ void construct_esp(char *file_name, void **esp) {
 
   }
 
+  /* push argv[argc-1] ~ argv[0] */
   total_len = 0;
   for (i = argc - 1; 0 <= i; i --) {
     len = strlen(argv[i]);
@@ -686,20 +547,26 @@ void construct_esp(char *file_name, void **esp) {
     strlcpy(*esp, argv[i], len + 1);
     argv[i] = *esp;
   }
+  /* push word align */
   *esp -= total_len % 4 != 0 ? 4 - (total_len % 4) : 0;
+  /* push NULL */
   *esp -= 4;
   **(uint32_t **)esp = 0;
+  /* push address of argv[argc-1] ~ argv[0] */
   for (i = argc - 1; 0 <= i; i--) {
     *esp -= 4;
     **(uint32_t **)esp = argv[i];
   }
+  /* push address of argv */
   *esp -= 4;
   **(uint32_t **)esp = *esp + 4;
 
+  /* push argc */
   *esp -= 4;
   **(uint32_t **)esp = argc;
   
+  /* push return address */
   *esp -= 4;
   **(uint32_t **)esp = 0;
   free(argv);
-}TODO*/
+}

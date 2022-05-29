@@ -22,10 +22,6 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
-//#ifdef VM
-//#include "vm/frame.h"
-//#include "vm/swap.h"
-//#endiif
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -41,9 +37,6 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-
-#include "vm/frame.h"
-#include "vm/swap.h"
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -79,7 +72,6 @@ static void locate_block_device (enum block_type, const char *name);
 
 int main (void) NO_RETURN;
 
-
 /* Pintos main program. */
 int
 main (void)
@@ -97,7 +89,6 @@ main (void)
      then enable console locking. */
   thread_init ();
   console_init ();  
-
 
   /* Greet user. */
   printf ("Pintos booting with %'"PRIu32" kB RAM...\n",
@@ -135,10 +126,6 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
-
-  //code modify-for init frame and swap
-  frame_init();
-  swap_init();
 
   printf ("Boot complete.\n");
   

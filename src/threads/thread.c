@@ -12,7 +12,6 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
-#include "userprog/syscall.h"
 #include "userprog/process.h"
 #endif
 
@@ -290,7 +289,7 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
-  
+
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -483,13 +482,6 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->load_lock, 0); 
   list_init(&(t->child));
   list_push_back(&(running_thread()->child), &(t->child_elem));
-
-  //code modify-initializing pages
-  t->pages=NULL;
-  //code modify-initializing list of mappings
-  list_init(&t->mappings);
-  //code modify-initializing next_mapid
-  t->next_mapid=0;
 #endif 
 }
 
